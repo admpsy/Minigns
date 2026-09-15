@@ -8,8 +8,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+
+@file:OptIn(ExperimentalMaterial3Api::class)
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,6 +40,9 @@ fun HomeScreen(
     onSelectScenario: (EnvironmentTheme) -> Unit,
     onUseTorch: () -> Unit,
     onRest: () -> Unit,
+    onToggleSound: () -> Unit = {},
+    onToggleHaptics: () -> Unit = {},
+    onDismissBanner: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
@@ -119,7 +125,65 @@ fun HomeScreen(
             onPartyClick = { onNavigate(GameScreen.PARTY_MANAGEMENT) }
         )
 
-        Spacer(Modifier.height(12.dp))
+        // Aviso contextual (ex.: masmorra conquistada)
+        if (state.activeBannerMessage != null) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
+                shape = RoundedCornerShape(10.dp),
+                color = GoldSecondary.copy(alpha = 0.22f),
+                border = BorderStroke(1.dp, GoldPrimary),
+                onClick = onDismissBanner
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Info, contentDescription = null, tint = GoldLight, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(state.activeBannerMessage, color = GoldLight, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                    Icon(Icons.Default.Close, contentDescription = "Fechar aviso", tint = Color.LightGray, modifier = Modifier.size(16.dp))
+                }
+            }
+        }
+
+        // Preferências rápidas: som e vibração
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            FilterChip(
+                selected = state.soundEnabled,
+                onClick = onToggleSound,
+                label = { Text(if (state.soundEnabled) "Som ligado" else "Som desligado", fontSize = 12.sp) },
+                leadingIcon = {
+                    Icon(
+                        if (state.soundEnabled) Icons.AutoMirrored.Filled.VolumeUp else Icons.Default.VolumeOff,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                },
+                modifier = Modifier.weight(1f).heightIn(min = 48.dp).testTag("toggle_sound")
+            )
+            FilterChip(
+                selected = state.hapticsEnabled,
+                onClick = onToggleHaptics,
+                label = { Text(if (state.hapticsEnabled) "Vibração ligada" else "Vibração desligada", fontSize = 12.sp) },
+                leadingIcon = {
+                    Icon(
+                        if (state.hapticsEnabled) Icons.Default.Vibration else Icons.Default.PhonelinkErase,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                },
+                modifier = Modifier.weight(1f).heightIn(min = 48.dp).testTag("toggle_haptics")
+            )
+        }
+
+        Spacer(Modifier.height(8.dp))
 
         // Main Navigation Hub
         Column(
@@ -162,7 +226,7 @@ fun HomeScreen(
                     contentColor = ArcaneCyan
                 )
             ) {
-                Icon(Icons.Default.DirectionsWalk, contentDescription = null, modifier = Modifier.size(20.dp))
+                Icon(Icons.AutoMirrored.Filled.DirectionsWalk, contentDescription = null, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(8.dp))
                 Text("Entrar na Masmorra Atual (${state.selectedTheme.title})", fontWeight = FontWeight.Bold, fontSize = 13.sp)
             }
@@ -200,7 +264,7 @@ fun HomeScreen(
                 MainMenuCard(
                     title = "Códice & Bestiário",
                     subtitle = "Criaturas, Chefes & Lore",
-                    icon = Icons.Default.MenuBook,
+                    icon = Icons.AutoMirrored.Filled.MenuBook,
                     accentColor = GoldLight,
                     onClick = { onNavigate(GameScreen.CODEX) },
                     modifier = Modifier.weight(1f).testTag("codex_button")
