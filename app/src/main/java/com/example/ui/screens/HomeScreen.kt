@@ -161,7 +161,7 @@ fun HomeScreen(
                 label = { Text(if (state.soundEnabled) "Som ligado" else "Som desligado", fontSize = 12.sp) },
                 leadingIcon = {
                     Icon(
-                        if (state.soundEnabled) Icons.AutoMirrored.Filled.VolumeUp else Icons.Default.VolumeOff,
+                        if (state.soundEnabled) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
