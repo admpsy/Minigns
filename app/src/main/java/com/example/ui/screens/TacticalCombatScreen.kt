@@ -16,9 +16,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.text.style.TextOverflow
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -50,6 +54,7 @@ fun TacticalCombatScreen(
     onDismissDiceRoll: () -> Unit,
     onEndTurn: () -> Unit,
     onNavigate: (GameScreen) -> Unit,
+    onRetreat: () -> Unit = { onNavigate(GameScreen.EXPLORATION) },
     modifier: Modifier = Modifier
 ) {
     val activeHero = state.party.getOrNull(state.activeHeroIndex)
@@ -63,6 +68,15 @@ fun TacticalCombatScreen(
             roll = state.activeDiceRoll,
             onDismiss = onDismissDiceRoll
         )
+    }
+
+    // Resultado do d20 fecha sozinho: menos toques por turno no celular.
+    val currentRoll = state.activeDiceRoll
+    LaunchedEffect(currentRoll) {
+        if (currentRoll != null) {
+            delay(1800)
+            onDismissDiceRoll()
+        }
     }
 
     Scaffold(
@@ -81,8 +95,8 @@ fun TacticalCombatScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { onNavigate(GameScreen.EXPLORATION) }, modifier = Modifier.testTag("combat_retreat_btn")) {
-                        Icon(Icons.Default.ExitToApp, contentDescription = "Recuar", tint = Color.LightGray)
+                    IconButton(onClick = onRetreat, modifier = Modifier.testTag("combat_retreat_btn")) {
+                        Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = "Recuar do combate", tint = Color.LightGray)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkSurfaceElevated)
@@ -93,7 +107,13 @@ fun TacticalCombatScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(8.dp)
+        ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .padding(horizontal = 8.dp)
+                .padding(top = 8.dp)
                 .verticalScroll(scrollState),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
@@ -233,10 +253,22 @@ fun TacticalCombatScreen(
                 }
             }
 
-            // 5. Tactical Action & Skill Deck for Active Hero
+            // Registro de combate (dentro da área rolável)
+            Text("Registro de Combate (Rolagens D20, Terreno & Sinergias):", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = GoldLight)
+            CombatLogView(
+                logs = state.combatLogs,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(Modifier.height(4.dp))
+        }
+
+            // 5. Painel de ações FIXO na parte de baixo (sempre ao alcance do polegar)
             if (activeHero != null) {
                 Surface(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp),
                     shape = RoundedCornerShape(12.dp),
                     color = DarkSurface,
                     border = BorderStroke(1.dp, GoldSecondary.copy(alpha = 0.4f))
@@ -276,7 +308,7 @@ fun TacticalCombatScreen(
 
                                 Surface(
                                     modifier = Modifier
-                                        .clickable(enabled = hasEnoughMp && activeHero.ap >= skill.apCost) {
+                                        .clickable(enabled = state.isPlayerTurn && hasEnoughMp && activeHero.ap >= skill.apCost) {
                                             onSelectSkill(skill)
                                         }
                                         .testTag("skill_${skill.id}"),
@@ -316,7 +348,7 @@ fun TacticalCombatScreen(
                                 color = DarkSurfaceElevated
                             ) {
                                 Column(modifier = Modifier.padding(6.dp)) {
-                                    Text(selectedSkill.description, fontSize = 10.sp, color = Color.LightGray)
+                                    Text(selectedSkill.description, fontSize = 10.sp, color = Color.LightGray, maxLines = 2, overflow = TextOverflow.Ellipsis)
                                     Spacer(Modifier.height(2.dp))
                                     Text(
                                         "Tipo: ${selectedSkill.damageType.name} • Alcance: ${selectedSkill.range} quadros • Alvo: ${selectedSkill.targetType.name}",
@@ -339,20 +371,13 @@ fun TacticalCombatScreen(
                             onItemFireClick = onItemFire,
                             onItemSmokeClick = onItemSmoke,
                             onPassTurnClick = onEndTurn,
-                            healingPotionsCount = state.resources.healingPotions
+                            healingPotionsCount = state.resources.healingPotions,
+                            isPlayerTurn = state.isPlayerTurn
                         )
                     }
                 }
             }
 
-            // 6. Combat Event Log
-            Text("Registro de Combate (Rolagens D20, Terreno & Sinergias):", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = GoldLight)
-            CombatLogView(
-                logs = state.combatLogs,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(Modifier.height(16.dp))
         }
     }
 }
