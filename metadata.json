@@ -1,0 +1,7 @@
+{
+  "name": "Crypts & Dungeons",
+  "description": "Tactical tabletop RPG dungeon crawler with turn-based grid combat, class synergies, dark atmospheric dungeons, and progression.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
