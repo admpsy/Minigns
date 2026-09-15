@@ -120,7 +120,9 @@ fun CombatLogView(
 ) {
     val listState = rememberLazyListState()
 
-    LaunchedEffect(logs.size) {
+    // Rola até a entrada mais recente (chave pelo id: funciona mesmo com o histórico limitado).
+    val lastLogId = logs.lastOrNull()?.id
+    LaunchedEffect(lastLogId) {
         if (logs.isNotEmpty()) {
             listState.animateScrollToItem(logs.size - 1)
         }
@@ -141,7 +143,7 @@ fun CombatLogView(
                 .padding(8.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            items(logs) { entry ->
+            items(logs, key = { it.id }) { entry ->
                 val (color, icon) = when (entry.type) {
                     LogType.CRIT -> Pair(GoldLight, Icons.Default.Star)
                     LogType.COMBO -> Pair(ArcaneCyan, Icons.Default.AutoAwesome)
@@ -870,7 +872,7 @@ fun D20RollDialog(
                         }
 
                         if (roll.damage > 0) {
-                            Divider(color = DarkBorder, thickness = 1.dp, modifier = Modifier.padding(vertical = 4.dp))
+                            HorizontalDivider(color = DarkBorder, thickness = 1.dp, modifier = Modifier.padding(vertical = 4.dp))
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -905,8 +907,10 @@ fun TacticalActionsBar(
     onItemSmokeClick: () -> Unit,
     onPassTurnClick: () -> Unit,
     healingPotionsCount: Int,
+    isPlayerTurn: Boolean = true,
     modifier: Modifier = Modifier
 ) {
+    val canAct = isPlayerTurn && activeHero != null && activeHero.isAlive && activeHero.ap > 0
     Surface(
         modifier = modifier.fillMaxWidth(),
         color = Color(0xFF16161D),
@@ -921,7 +925,7 @@ fun TacticalActionsBar(
             ) {
                 Button(
                     onClick = onAttackClick,
-                    enabled = activeHero != null && activeHero.ap > 0,
+                    enabled = canAct,
                     modifier = Modifier.weight(1.3f).height(44.dp).testTag("combat_attack_button"),
                     colors = ButtonDefaults.buttonColors(containerColor = BloodCrimson),
                     shape = RoundedCornerShape(8.dp)
@@ -933,7 +937,7 @@ fun TacticalActionsBar(
 
                 Button(
                     onClick = onGuardClick,
-                    enabled = activeHero != null && activeHero.ap > 0 && !activeHero.isGuarding,
+                    enabled = canAct && activeHero?.isGuarding == false,
                     modifier = Modifier.weight(1f).height(44.dp).testTag("combat_guard_button"),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF233B53)),
                     shape = RoundedCornerShape(8.dp)
@@ -945,7 +949,7 @@ fun TacticalActionsBar(
 
                 Button(
                     onClick = onShoveClick,
-                    enabled = activeHero != null && activeHero.ap > 0,
+                    enabled = canAct,
                     modifier = Modifier.weight(1f).height(44.dp).testTag("combat_shove_button"),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4A3820)),
                     shape = RoundedCornerShape(8.dp)
@@ -965,7 +969,7 @@ fun TacticalActionsBar(
                 // Potion
                 OutlinedButton(
                     onClick = onItemPotionClick,
-                    enabled = healingPotionsCount > 0 && activeHero != null && activeHero.ap > 0,
+                    enabled = canAct && healingPotionsCount > 0,
                     modifier = Modifier.weight(1f).height(38.dp),
                     shape = RoundedCornerShape(8.dp),
                     border = BorderStroke(1.dp, PoisonGreen),
@@ -979,7 +983,7 @@ fun TacticalActionsBar(
                 // Alchemist Fire
                 OutlinedButton(
                     onClick = onItemFireClick,
-                    enabled = activeHero != null && activeHero.ap > 0,
+                    enabled = canAct,
                     modifier = Modifier.weight(1f).height(38.dp),
                     shape = RoundedCornerShape(8.dp),
                     border = BorderStroke(1.dp, TorchOrange),
@@ -993,7 +997,7 @@ fun TacticalActionsBar(
                 // Smoke Bomb
                 OutlinedButton(
                     onClick = onItemSmokeClick,
-                    enabled = activeHero != null && activeHero.ap > 0,
+                    enabled = canAct,
                     modifier = Modifier.weight(1f).height(38.dp),
                     shape = RoundedCornerShape(8.dp),
                     border = BorderStroke(1.dp, Color.LightGray),
@@ -1007,6 +1011,7 @@ fun TacticalActionsBar(
                 // Pass Turn
                 OutlinedButton(
                     onClick = onPassTurnClick,
+                    enabled = isPlayerTurn,
                     modifier = Modifier.weight(1f).height(38.dp).testTag("combat_end_turn_button"),
                     shape = RoundedCornerShape(8.dp),
                     border = BorderStroke(1.dp, DarkBorder),
