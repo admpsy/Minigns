@@ -8,6 +8,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -15,8 +17,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.model.TileType
@@ -26,6 +30,7 @@ import com.example.ui.components.PartyResourceHeader
 import com.example.ui.theme.*
 import com.example.viewmodel.GameScreen
 import com.example.viewmodel.GameUiState
+import kotlin.math.abs
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,9 +46,12 @@ fun ExplorationScreen(
     onDismissBanner: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val currentTile = state.dungeonMap.tiles.find {
-        it.x == state.playerDungeonX && it.y == state.playerDungeonY
-    }
+    val map = state.dungeonMap
+    val px = state.playerDungeonX
+    val py = state.playerDungeonY
+    val currentTile = map.tiles.getOrNull(py * map.width + px)?.takeIf { it.x == px && it.y == py }
+        ?: map.tiles.find { it.x == px && it.y == py }
+    val isInteractable = currentTile?.type?.isInteractive == true && currentTile.lootClaimed.not()
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -53,7 +61,15 @@ fun ExplorationScreen(
                 title = {
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(state.dungeonMap.name, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = GoldLight)
+                            Text(
+                                map.name,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = GoldLight,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false)
+                            )
                             Spacer(Modifier.width(6.dp))
                             Surface(
                                 shape = RoundedCornerShape(4.dp),
@@ -70,15 +86,16 @@ fun ExplorationScreen(
                             }
                         }
                         Text(
-                            "Pos: (${state.playerDungeonX}, ${state.playerDungeonY}) • Tocha: ${"%.1f".format(state.torchLightRadius)}m • Patrulhas no mapa: ${state.dungeonPatrols.count { it.isAlive }}",
+                            "Tocha ${"%.1f".format(state.torchLightRadius)}m • Patrulhas: ${state.dungeonPatrols.count { it.isAlive }}",
                             fontSize = 10.sp,
-                            color = Color.LightGray
+                            color = Color.LightGray,
+                            maxLines = 1
                         )
                     }
                 },
                 navigationIcon = {
                     IconButton(onClick = { onNavigate(GameScreen.HOME) }, modifier = Modifier.testTag("explore_back_btn")) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar", tint = GoldLight)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar ao menu", tint = GoldLight)
                     }
                 },
                 actions = {
@@ -94,9 +111,8 @@ fun ExplorationScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(8.dp)
+                .padding(horizontal = 8.dp, vertical = 4.dp)
         ) {
-            // Resource Header
             PartyResourceHeader(
                 resources = state.resources,
                 onRestClick = onRest,
@@ -104,9 +120,6 @@ fun ExplorationScreen(
                 onPartyClick = { onNavigate(GameScreen.PARTY_MANAGEMENT) }
             )
 
-            Spacer(Modifier.height(4.dp))
-
-            // Notification / Banner message if present
             if (state.activeBannerMessage != null) {
                 Surface(
                     modifier = Modifier
@@ -114,28 +127,32 @@ fun ExplorationScreen(
                         .padding(vertical = 4.dp),
                     shape = RoundedCornerShape(8.dp),
                     color = GoldSecondary.copy(alpha = 0.25f),
-                    border = BorderStroke(1.dp, GoldPrimary)
+                    border = BorderStroke(1.dp, GoldPrimary),
+                    onClick = onDismissBanner
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 10.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                            .padding(horizontal = 10.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Info, contentDescription = null, tint = GoldLight, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text(state.activeBannerMessage, color = GoldLight, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                        }
-                        IconButton(onClick = onDismissBanner, modifier = Modifier.size(20.dp)) {
-                            Icon(Icons.Default.Close, contentDescription = "Fechar", tint = Color.LightGray, modifier = Modifier.size(14.dp))
-                        }
+                        Icon(Icons.Default.Info, contentDescription = null, tint = GoldLight, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            state.activeBannerMessage,
+                            color = GoldLight,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Icon(Icons.Default.Close, contentDescription = "Fechar aviso", tint = Color.LightGray, modifier = Modifier.size(16.dp))
                     }
                 }
             }
 
-            // Isometric Dungeon Tabletop Grid Canvas
+            // Mapa: deslize para andar, toque num quadrado para ir até ele, toque no grupo para interagir.
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -144,15 +161,26 @@ fun ExplorationScreen(
                     .border(1.dp, DarkBorder, RoundedCornerShape(12.dp))
             ) {
                 IsometricDungeonCanvas(
-                    map = state.dungeonMap,
-                    playerX = state.playerDungeonX,
-                    playerY = state.playerDungeonY,
+                    map = map,
+                    playerX = px,
+                    playerY = py,
                     enemies = state.dungeonPatrols,
                     torchRadius = state.torchLightRadius,
-                    modifier = Modifier.fillMaxSize()
+                    onTileClick = { tx, ty ->
+                        val dx = tx - px
+                        val dy = ty - py
+                        when {
+                            dx == 0 && dy == 0 -> onInteract()
+                            abs(dx) >= abs(dy) -> onMove(if (dx > 0) 1 else -1, 0)
+                            else -> onMove(0, if (dy > 0) 1 else -1)
+                        }
+                    },
+                    onSwipe = { dx, dy -> onMove(dx, dy) },
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .testTag("dungeon_map")
                 )
 
-                // Current tile overlay tag in bottom left of the map
                 Surface(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
@@ -161,16 +189,20 @@ fun ExplorationScreen(
                     color = DarkSurface.copy(alpha = 0.85f),
                     border = BorderStroke(0.5.dp, DarkBorder)
                 ) {
-                    val tileDesc = when (currentTile?.type) {
-                        TileType.CHEST -> "Baú de Tesouro (Pressione Interagir)"
-                        TileType.SARCOPHAGUS -> "Sarcófago de Pedra (Inspecionar)"
-                        TileType.ALTAR -> "Altar Ancestral Sagrado (Orar)"
-                        TileType.FOUNTAIN -> "Fonte de Águas Luminescentes"
-                        TileType.TRAP_SPIKE -> "Armadilha de Espinho (Cuidado!)"
-                        TileType.TRAP_POISON -> "Vapor Tóxico Subterrâneo"
-                        TileType.EXIT_STAIRS -> "Escadaria para a Câmara do Chefe"
-                        TileType.TORCH_STAND -> "Suporte de Tochas na Parede"
-                        else -> "Piso de Pedra Antiga • Turno por Ação"
+                    val used = currentTile?.lootClaimed == true && currentTile.type.isInteractive
+                    val tileDesc = when {
+                        used -> "Já utilizado"
+                        else -> when (currentTile?.type) {
+                            TileType.CHEST -> "Baú de Tesouro • toque em Interagir"
+                            TileType.SARCOPHAGUS -> "Sarcófago de Pedra • Inspecionar"
+                            TileType.ALTAR -> "Altar Ancestral Sagrado • Orar"
+                            TileType.FOUNTAIN -> "Fonte de Águas Luminescentes"
+                            TileType.TRAP_SPIKE -> "Armadilha de Espinho (Cuidado!)"
+                            TileType.TRAP_POISON -> "Vapor Tóxico Subterrâneo"
+                            TileType.EXIT_STAIRS -> "Escadaria para a Câmara do Chefe"
+                            TileType.TORCH_STAND -> "Suporte de Tochas na Parede"
+                            else -> "Deslize ou toque no mapa para andar"
+                        }
                     }
                     Text(
                         text = tileDesc,
@@ -183,161 +215,128 @@ fun ExplorationScreen(
 
             Spacer(Modifier.height(6.dp))
 
-            // Interactive Controls Row & DPAD
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Directional DPAD Controls
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(start = 8.dp)
-                ) {
-                    // UP (North)
-                    IconButton(
-                        onClick = { onMove(0, -1) },
-                        modifier = Modifier
-                            .size(42.dp)
-                            .background(DarkSurfaceElevated, CircleShape)
-                            .testTag("dpad_up")
-                    ) {
-                        Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Norte", tint = GoldLight)
+                // D-pad com alvos de toque de 52dp (acima do mínimo de 48dp do Android)
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    DpadButton(Icons.Default.KeyboardArrowUp, "Mover para o norte", "dpad_up") { onMove(0, -1) }
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        DpadButton(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Mover para o oeste", "dpad_left") { onMove(-1, 0) }
+                        DpadButton(
+                            icon = Icons.Default.TouchApp,
+                            description = "Interagir",
+                            tag = "dpad_interact",
+                            background = if (isInteractable) GoldPrimary else DarkSurface,
+                            tint = if (isInteractable) Color.Black else GoldLight,
+                            onClick = onInteract
+                        )
+                        DpadButton(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Mover para o leste", "dpad_right") { onMove(1, 0) }
                     }
-
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        // LEFT (West)
-                        IconButton(
-                            onClick = { onMove(-1, 0) },
-                            modifier = Modifier
-                                .size(42.dp)
-                                .background(DarkSurfaceElevated, CircleShape)
-                                .testTag("dpad_left")
-                        ) {
-                            Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Oeste", tint = GoldLight)
-                        }
-
-                        // CENTER (Interact)
-                        val isInteractable = currentTile?.type?.isInteractive == true
-                        IconButton(
-                            onClick = onInteract,
-                            modifier = Modifier
-                                .size(42.dp)
-                                .background(if (isInteractable) GoldPrimary else DarkSurface, CircleShape)
-                                .testTag("dpad_interact")
-                        ) {
-                            Icon(
-                                Icons.Default.TouchApp,
-                                contentDescription = "Interagir",
-                                tint = if (isInteractable) Color.Black else GoldLight
-                            )
-                        }
-
-                        // RIGHT (East)
-                        IconButton(
-                            onClick = { onMove(1, 0) },
-                            modifier = Modifier
-                                .size(42.dp)
-                                .background(DarkSurfaceElevated, CircleShape)
-                                .testTag("dpad_right")
-                        ) {
-                            Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Leste", tint = GoldLight)
-                        }
-                    }
-
-                    // DOWN (South)
-                    IconButton(
-                        onClick = { onMove(0, 1) },
-                        modifier = Modifier
-                            .size(42.dp)
-                            .background(DarkSurfaceElevated, CircleShape)
-                            .testTag("dpad_down")
-                    ) {
-                        Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Sul", tint = GoldLight)
-                    }
+                    DpadButton(Icons.Default.KeyboardArrowDown, "Mover para o sul", "dpad_down") { onMove(0, 1) }
                 }
 
-                // Exploration Actions Panel
                 Column(
                     modifier = Modifier
                         .weight(1f)
-                        .padding(start = 14.dp),
-                    verticalArrangement = Arrangement.spacedBy(5.dp)
+                        .padding(start = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    // Wait Turn Button (Turn-based exploration mechanic)
                     OutlinedButton(
                         onClick = onWaitTurn,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(34.dp)
+                            .heightIn(min = 44.dp)
                             .testTag("explore_wait_turn_btn"),
                         shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp),
                         border = BorderStroke(1.dp, ArcaneCyan.copy(alpha = 0.7f)),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = ArcaneCyan)
                     ) {
-                        Icon(Icons.Default.HourglassEmpty, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Icon(Icons.Default.HourglassEmpty, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Aguardar 1 Turno (Vigília)", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Aguardar 1 Turno", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
                     }
 
-                    // Start Battle / Attack button
                     Button(
                         onClick = onStartCombat,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(34.dp)
+                            .heightIn(min = 44.dp)
                             .testTag("explore_fight_btn"),
+                        contentPadding = PaddingValues(horizontal = 8.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = BloodCrimson),
                         shape = RoundedCornerShape(8.dp)
                     ) {
-                        Icon(Icons.Default.SportsKabaddi, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Icon(Icons.Default.SportsKabaddi, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Combate Tático", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Text("Combate Tático", fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                     }
 
-                    // Short Rest Button
-                    OutlinedButton(
-                        onClick = onRest,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(32.dp)
-                            .testTag("explore_rest_btn"),
-                        shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(1.dp, PoisonGreen.copy(alpha = 0.6f)),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = PoisonGreen)
-                    ) {
-                        Icon(Icons.Default.Restaurant, contentDescription = null, modifier = Modifier.size(14.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text("Descanso (-1 Ração)", fontSize = 10.sp)
-                    }
-
-                    // Use Torch Button
-                    OutlinedButton(
-                        onClick = onUseTorch,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(32.dp)
-                            .testTag("explore_torch_btn"),
-                        shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(1.dp, TorchOrange.copy(alpha = 0.6f)),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TorchOrange)
-                    ) {
-                        Icon(Icons.Default.Whatshot, contentDescription = null, modifier = Modifier.size(14.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text("Tocha (${state.resources.torches})", fontSize = 10.sp)
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        OutlinedButton(
+                            onClick = onRest,
+                            modifier = Modifier
+                                .weight(1f)
+                                .heightIn(min = 44.dp)
+                                .testTag("explore_rest_btn"),
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 4.dp),
+                            border = BorderStroke(1.dp, PoisonGreen.copy(alpha = 0.6f)),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = PoisonGreen)
+                        ) {
+                            Icon(Icons.Default.Restaurant, contentDescription = null, modifier = Modifier.size(14.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Descanso (${state.resources.rations})", fontSize = 11.sp, maxLines = 1)
+                        }
+                        OutlinedButton(
+                            onClick = onUseTorch,
+                            modifier = Modifier
+                                .weight(1f)
+                                .heightIn(min = 44.dp)
+                                .testTag("explore_torch_btn"),
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 4.dp),
+                            border = BorderStroke(1.dp, TorchOrange.copy(alpha = 0.6f)),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = TorchOrange)
+                        ) {
+                            Icon(Icons.Default.Whatshot, contentDescription = null, modifier = Modifier.size(14.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Tocha (${state.resources.torches})", fontSize = 11.sp, maxLines = 1)
+                        }
                     }
                 }
             }
 
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(6.dp))
 
-            // Mini Combat Log
             CombatLogView(
                 logs = state.combatLogs,
                 modifier = Modifier.fillMaxWidth()
             )
         }
+    }
+}
+
+@Composable
+private fun DpadButton(
+    icon: ImageVector,
+    description: String,
+    tag: String,
+    background: Color = DarkSurfaceElevated,
+    tint: Color = GoldLight,
+    onClick: () -> Unit
+) {
+    IconButton(
+        onClick = onClick,
+        modifier = Modifier
+            .size(52.dp)
+            .padding(2.dp)
+            .background(background, CircleShape)
+            .testTag(tag)
+    ) {
+        Icon(icon, contentDescription = description, tint = tint, modifier = Modifier.size(28.dp))
     }
 }
